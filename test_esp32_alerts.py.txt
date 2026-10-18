@@ -1,0 +1,41 @@
+
+import time
+import serial
+
+PORT = "COM11"
+BAUD_RATE = 115200
+
+try:
+    with serial.Serial(PORT, BAUD_RATE, timeout=2) as esp:
+        # Opening a serial connection may reset the ESP32.
+        time.sleep(2)
+        esp.reset_input_buffer()
+
+        print("Connected to ESP32.")
+
+        for command in ["ATTENTION", "EMERGENCY", "RESET"]:
+            print(f"\nSending: {command}")
+            esp.write((command + "\n").encode("utf-8"))
+            esp.flush()
+
+            # Wait for the current buzzer pattern to finish.
+            deadline = time.monotonic() + 12
+
+            while time.monotonic() < deadline:
+                line = esp.readline().decode(
+                    "utf-8", errors="replace"
+                ).strip()
+
+                if line:
+                    print("ESP32:", line)
+
+                if line == f"ACK:{command}":
+                    break
+            else:
+                print(f"No acknowledgement received for {command}")
+
+        print("\nCommunication test finished.")
+
+except serial.SerialException as error:
+    print("Serial connection error:", error)
+    print("Check COM11 and close Arduino Serial Monitor.")
